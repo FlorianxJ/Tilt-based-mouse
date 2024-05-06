@@ -1,0 +1,131 @@
+#include <Wire.h>
+#include <BMI160Gen.h>
+#include <Mouse.h>
+#include <math.h>
+int ax, ay, az, range = 2, rate =1600;
+float speedX, speedY, ax_centerd, pspeedX, pspeedY,
+ay_centerd, ax_initial, ay_initial;
+float previousMillis; // will store the last time the
+speed was updated
+short counter1;
+bool leftButtonPressed = false;
+bool rightButtonPressed = false;
+float timeConditionMet = 0; // Zeitpunkt, zu dem die
+Bedingung erstmals erfüllt wurde
+float conditionDuration = 5000; // Gewünschte Dauer in
+Millisekunden
+void setup() {
+// Initilize Wire communication and define and initilize
+i2c adress and communication with Bmi160
+Wire.begin();
+BMI160.begin(BMI160GenClass::I2C_MODE, 0x68);
+BMI160.setAccelerometerRange(range);
+BMI160.setAccelerometerRate(rate);
+Serial.begin(9600);
+// Start the Mouse library
+Mouse.begin();
+// Setup mouse buttons
+pinMode(3, INPUT_PULLUP);
+pinMode(4, INPUT_PULLUP);
+pinMode(5, INPUT_PULLUP);
+pinMode(6, INPUT_PULLUP);
+}
+void loop() {
+// Wait until the BMI sensor provides non-zero
+acceleration data
+while(counter1==0){
+if (ax != 0 || ay != 0) {
+//save first values to later center the sensor values
+ax_initial=ax;
+ay_initial=ay;
+counter1=1; //make the if statment false to prefent
+resetting of initial values
+}
+else{
+BMI160.readAccelerometer(ax, ay, az);
+delay(10);
+}
+}
+//Read sensor data to get values for current loop
+BMI160.readAccelerometer(ax, ay, az);
+//Subtract the initial values
+ax_centerd = ax - ax_initial;
+ay_centerd = ay - ay_initial;
+//Keep track of time to calculate speed (in seconds)
+millis();
+float currentMillis = millis();
+float dt = (currentMillis - previousMillis) / 1000; //
+Time step in seconds
+previousMillis = currentMillis;
+//Integrate acceleration to get speed
+speedX = pspeedX + (ax_centerd*dt);
+speedY = pspeedY + (ay_centerd*dt);
+pspeedX = speedX*0.7;
+pspeedY = speedY*0.7;
+//move the mouse if seed outside of defined values is
+detected
+if(abs(speedX) > 5 || abs(speedY) > 5){
+Mouse.move((speedX),0,0);
+Mouse.move(0,(-speedY),0);
+}
+//execute button controls
+controls();
+//try to check for possible drift if the centerd
+acceleration data deviates a certain value for more than 5
+seconds
+resetcheck();
+//check for loop time
+Serial.println(previousMillis-millis());
+}
+void resetcheck(){
+//check if threshold of defiation is met
+if(abs(ax_centerd) < 10 || abs(ay_centerd) < 10){
+//check if required time is met for the mouse to be
+likely still
+if(timeConditionMet == 0) {
+timeConditionMet = millis(); // Condition curently met
+}
+// Condition met for defined time
+else if(millis() - timeConditionMet >=
+conditionDuration) {
+speedX = 0;
+speedY = 0;
+pspeedX = 0;
+pspeedY = 0;
+previousMillis = 0;
+counter1 = 0;
+timeConditionMet = 0; // Reset of time variable
+}
+}
+// Condition not met
+else {
+timeConditionMet = 0;
+}
+}
+void controls(){
+// Left key control
+if(digitalRead(3) == 0 && leftButtonPressed == false){
+Mouse.press(MOUSE_LEFT);
+leftButtonPressed = true;
+}
+if(digitalRead(3) == 1 && leftButtonPressed){
+Mouse.release(MOUSE_LEFT);
+leftButtonPressed = false;
+}
+// Right key control
+if(digitalRead(4) == 0 && rightButtonPressed == false){
+Mouse.press(MOUSE_RIGHT);
+rightButtonPressed = true;
+}
+if(digitalRead(4) == 1 && rightButtonPressed){
+Mouse.release(MOUSE_RIGHT);
+rightButtonPressed = false;
+}
+// Scroll control
+if (digitalRead(5) == 0){
+Mouse.move(0, 0, -1);
+}
+if (digitalRead(6) == 0){
+Mouse.move(0, 0, 1);
+}
+}
