@@ -10,10 +10,8 @@ speed was updated
 short counter1;
 bool leftButtonPressed = false;
 bool rightButtonPressed = false;
-float timeConditionMet = 0; // Zeitpunkt, zu dem die
-Bedingung erstmals erfüllt wurde
-float conditionDuration = 5000; // Gewünschte Dauer in
-Millisekunden
+float timeConditionMet = 0; // Zeitpunkt, zu dem die Bedingung erstmals erfüllt wurde
+float conditionDuration = 5000; // Gewünschte Dauer in Millisekunden
 void setup() {
 // Initilize Wire communication and define and initilize
 i2c adress and communication with Bmi160
